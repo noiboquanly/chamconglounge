@@ -91,7 +91,7 @@
   .dist-line b{color:var(--ink)}
 
   .clock{font-family:'JetBrains Mono';font-weight:700;font-size:34px;text-align:center;letter-spacing:.02em;margin:2px 0 0}
-  .clock-date{text-align:center;font-size:12.5px;color:var(--muted);margin-bottom:16px;text-transform:ctalize}
+  .clock-date{text-align:center;font-size:12.5px;color:var(--muted);margin-bottom:16px;text-transform:capitalize}
 
   /* Records / list */
   .rec{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line-2)}
@@ -150,9 +150,9 @@
    Bật Realtime Database (chế độ test hoặc rule tùy chỉnh).
    ============================================================ */
 const firebaseConfig = {
-  Key: "AIzaSyCKFMDG3l_OtT5lQM1lC8uyoPRAH7T3nb0",
+  apiKey: "AIzaSyCKFMDG3l_OtT5lQM1lC8uyoPRAH7T3nb0",
   authDomain: "chamconglounge.firebaseapp.com",
-  databaseURL: "https://chamconglounge-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  databaseURL: "https://chamconglounge-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "chamconglounge",
   storageBucket: "chamconglounge.firebasestorage.app",
   messagingSenderId: "360872157740",
@@ -560,17 +560,8 @@ function punch(kind){
 // Gửi 1 bản ghi lên Google Sheet qua Apps Script (chạy ngầm, không chặn giao diện)
 function syncToSheet(payload){
   const url = state.config && state.config.sheetUrl;
-
   if(!url) return Promise.resolve();
-
-  return fetch(url,{
-    method:'POST',
-    mode:'no-cors',
-    headers:{
-      'Content-Type':'text/plain;charset=utf-8'
-    },
-    body:JSON.stringify(payload)
-  });
+  return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
 }
 function rowOf(dk, empId, r){
   const emp=state.employees[empId]||{};
