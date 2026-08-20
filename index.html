@@ -560,8 +560,17 @@ function punch(kind){
 // Gửi 1 bản ghi lên Google Sheet qua Apps Script (chạy ngầm, không chặn giao diện)
 function syncToSheet(payload){
   const url = state.config && state.config.sheetUrl;
+
   if(!url) return Promise.resolve();
-  return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+
+  return fetch(url,{
+    method:'POST',
+    mode:'no-cors',
+    headers:{
+      'Content-Type':'text/plain;charset=utf-8'
+    },
+    body:JSON.stringify(payload)
+  });
 }
 function rowOf(dk, empId, r){
   const emp=state.employees[empId]||{};
