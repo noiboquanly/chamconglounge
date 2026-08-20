@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#14202e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chấm Công">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>Chấm công nội bộ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14202e; --surface:#f6f4ee; --card:#ffffff;
+    --brand:#0f6b5c; --brand-d:#0a5044;
+    --present:#1f9d55; --present-bg:#e6f6ec;
+    --away:#d1495b; --away-bg:#fbe9ec;
+    --amber:#e0a415; --amber-bg:#fdf3dc;
+    --muted:#6b7684; --line:#e7e3d9; --line-2:#eef0f2;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Inter',system-ui,sans-serif; color:var(--ink);
+    background:var(--surface); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.01em}
+  .mono{font-family:'JetBrains Mono',monospace}
+  .wrap{max-width:460px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+  .hide{display:none!important}
+
+  /* Top bar */
+  .topbar{background:var(--ink);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .topbar .co{font-family:'Space Grotesk';font-weight:600;font-size:15px;line-height:1.15}
+  .topbar .co small{display:block;font-family:'Inter';font-weight:400;font-size:11px;color:#9fb0c0;letter-spacing:.02em}
+  .icon-btn{background:rgba(255,255,255,.1);border:none;color:#dbe6ef;width:34px;height:34px;border-radius:9px;font-size:15px;cursor:pointer}
+  .icon-btn:active{background:rgba(255,255,255,.2)}
+
+  main{flex:1;padding:18px}
+
+  /* Cards & inputs */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px;letter-spacing:.02em}
+  input,select{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--brand)}
+  .field{margin-bottom:14px}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+
+  button.btn{width:100%;padding:14px;border:none;border-radius:13px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;transition:transform .05s}
+  button.btn:active{transform:scale(.985)}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.dark{background:var(--ink);color:#fff}
+  .btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+  .btn.danger{background:var(--away-bg);color:var(--away)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+  .muted{color:var(--muted);font-size:13px}
+  .center{text-align:center}
+
+  /* ---- Radar signature ---- */
+  .radar-stage{position:relative;width:230px;height:230px;margin:6px auto 4px;display:flex;align-items:center;justify-content:center}
+  .radar-ring{position:absolute;border-radius:50%;border:1.5px solid var(--line)}
+  .r1{width:230px;height:230px}.r2{width:158px;height:158px}.r3{width:86px;height:86px}
+  .radar-fill{position:absolute;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle,rgba(31,157,85,.16),rgba(31,157,85,0) 70%);opacity:0;transition:opacity .5s}
+  .radar-fill.on{opacity:1}
+  .radar-fill.bad{background:radial-gradient(circle,rgba(209,73,91,.14),rgba(209,73,91,0) 70%)}
+  .office-pin{position:absolute;width:16px;height:16px;border-radius:50%;background:var(--ink);border:3px solid #fff;box-shadow:0 0 0 2px var(--ink);z-index:3}
+  .me-dot{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--amber);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2);z-index:4;transition:left .6s ease,top .6s ease,background .4s}
+  .me-dot.present{background:var(--present)}.me-dot.away{background:var(--away)}
+  .pulse{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--amber);opacity:.55;animation:pulse 1.6s ease-out infinite;z-index:3}
+  .me-dot.present + .pulse{background:var(--present)}
+  @keyframes pulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(3.4);opacity:0}}
+  .sweep{position:absolute;width:230px;height:230px;border-radius:50%;overflow:hidden;z-index:1}
+  .sweep::after{content:'';position:absolute;inset:0;background:conic-gradient(from 0deg,rgba(15,107,92,.22),transparent 60deg);animation:spin 2.4s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .sweep.off{display:none}
+
+  .status-pill{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:999px;font-size:13.5px;font-weight:600;margin-top:2px}
+  .status-pill.locating{background:var(--amber-bg);color:#9a6f04}
+  .status-pill.present{background:var(--present-bg);color:#137a3c}
+  .status-pill.away{background:var(--away-bg);color:var(--away)}
+  .dist-line{font-size:13px;color:var(--muted);margin-top:8px}
+  .dist-line b{color:var(--ink)}
+
+  .clock{font-family:'JetBrains Mono';font-weight:700;font-size:34px;text-align:center;letter-spacing:.02em;margin:2px 0 0}
+  .clock-date{text-align:center;font-size:12.5px;color:var(--muted);margin-bottom:16px;text-transform:capitalize}
+
+  /* Records / list */
+  .rec{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line-2)}
+  .rec-click{cursor:pointer;border-radius:10px;transition:background .12s}
+  .rec-click:active{background:var(--line-2)}
+  .modal-bg{position:fixed;inset:0;background:rgba(20,32,46,.5);display:flex;align-items:flex-end;justify-content:center;z-index:200}
+  .modal{background:#fff;width:100%;max-width:460px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto;animation:slideup .2s ease}
+  @keyframes slideup{from{transform:translateY(30px)}to{transform:translateY(0)}}
+  textarea{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);resize:vertical;min-height:64px}
+  textarea:focus{outline:none;border-color:var(--brand)}
+  .rec:last-child{border-bottom:none}
+  .avatar{width:38px;height:38px;border-radius:11px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:600;font-size:15px;flex-shrink:0}
+  .rec .nm{font-weight:600;font-size:14.5px}
+  .rec .sub{font-size:12px;color:var(--muted)}
+  .rec .times{margin-left:auto;text-align:right}
+  .rec .t-in{font-family:'JetBrains Mono';font-weight:700;font-size:15px;color:var(--present)}
+  .rec .t-out{font-family:'JetBrains Mono';font-size:12.5px;color:var(--muted)}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.03em}
+  .badge.ok{background:var(--present-bg);color:#137a3c}
+  .badge.late{background:var(--amber-bg);color:#9a6f04}
+  .badge.absent{background:var(--line-2);color:var(--muted)}
+
+  .tabbar{display:flex;background:var(--card);border-top:1px solid var(--line)}
+  .tabbar button{flex:1;background:none;border:none;padding:11px 0 9px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .tabbar button .ic{font-size:19px}
+  .tabbar button.active{color:var(--brand)}
+
+  .stat-row{display:flex;gap:10px;margin-bottom:16px}
+  .stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px}
+  .stat .n{font-family:'Space Grotesk';font-weight:700;font-size:26px;line-height:1}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:5px;font-weight:500}
+
+  .list-head{display:flex;align-items:center;justify-content:space-between;margin:20px 0 8px}
+  .list-head h3{margin:0;font-size:15px}
+  .toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:13.5px;font-weight:500;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.25);max-width:88%;text-align:center}
+  .seg{display:flex;background:var(--line-2);border-radius:12px;padding:4px;margin-bottom:18px}
+  .seg button{flex:1;border:none;background:none;padding:9px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--muted);cursor:pointer;font-family:inherit}
+  .seg button.active{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .emp-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-2)}
+  .emp-item:last-child{border:none}
+  .setup-note{background:#fff7e6;border:1px solid #f0dca8;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#8a6d17;margin-bottom:16px}
+  a.link{color:var(--brand);font-weight:600;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div id="toast"></div>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ============================================================
+   1) CẤU HÌNH FIREBASE  —  DÁN CONFIG CỦA BẠN VÀO ĐÂY
+   Lấy tại: Firebase Console > Project settings > Web app > SDK config
+   Bật Realtime Database (chế độ test hoặc rule tùy chỉnh).
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBkzQesCRSTgYITTKj4CV6299GcN_LNpSM",
+  authDomain: "chamconggps-7114f.firebaseapp.com",
+  databaseURL: "https://chamconggps-7114f-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "chamconggps-7114f",
+  storageBucket: "chamconggps-7114f.firebasestorage.app",
+  messagingSenderId: "416870247472",
+  appId: "1:416870247472:web:671529b75fba963b9851f5"
+};
+
+/* ============================================================
+   2) THAM SỐ MẶC ĐỊNH
+   ============================================================ */
+const DEFAULTS = {
+  radius: 100,        // bán kính cho phép chấm công (mét)
+  minAccuracy: 80     // độ chính xác GPS tối thiểu (mét). Kém hơn -> cảnh báo
+};
+
+/* ---------- Kiểm tra cấu hình ---------- */
+const APP = document.getElementById('app');
+const NOT_CONFIGURED = firebaseConfig.apiKey === "PASTE_API_KEY";
+let db = null;
+if(!NOT_CONFIGURED){
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+}
+
+/* ============================================================
+   3) TIỆN ÍCH GPS & THỜI GIAN
+   ============================================================ */
+// Khoảng cách 2 điểm (mét) — công thức Haversine
+function distanceM(lat1,lon1,lat2,lon2){
+  const R=6371000, toR=x=>x*Math.PI/180;
+  const dLat=toR(lat2-lat1), dLon=toR(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toR(lat1))*Math.cos(toR(lat2))*Math.sin(dLon/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
+// Tách chuỗi toạ độ dán từ Google Maps: "10.762622, 106.660172"
+function parseLatLng(str){
+  if(!str) return null;
+  const nums=str.replace(/[()°]/g,'').split(/[,\s]+/).map(s=>parseFloat(s)).filter(n=>!isNaN(n));
+  if(nums.length>=2){
+    const lat=nums[0], lng=nums[1];
+    if(lat>=-90&&lat<=90&&lng>=-180&&lng<=180) return {lat,lng,acc:0};
+  }
+  return null;
+}
+// Lấy vị trí: đo NHIỀU LẦN trong ~8 giây, chỉ giữ lần CHÍNH XÁC NHẤT (sai số nhỏ nhất)
+function getPosition(){
+  return new Promise((res,rej)=>{
+    if(!navigator.geolocation) return rej(new Error('Thiết bị không hỗ trợ GPS'));
+    let best=null, done=false, watchId=null, timer=null;
+    const finish=()=>{
+      if(done) return; done=true;
+      if(watchId!=null) navigator.geolocation.clearWatch(watchId);
+      clearTimeout(timer);
+      if(best) res({lat:best.coords.latitude,lng:best.coords.longitude,acc:Math.round(best.coords.accuracy)});
+      else rej(new Error('Quá thời gian định vị'));
+    };
+    watchId=navigator.geolocation.watchPosition(p=>{
+      if(!best || p.coords.accuracy < best.coords.accuracy) best=p;  // giữ lần sai số nhỏ nhất
+      if(best.coords.accuracy <= 25) finish();                       // đủ tốt (≤25m) thì chốt sớm
+    }, e=>{
+      if(!best){ done=true; clearTimeout(timer); if(watchId!=null) navigator.geolocation.clearWatch(watchId); rej(e); }
+    }, {enableHighAccuracy:true, timeout:20000, maximumAge:0});
+    timer=setTimeout(finish, 8000);   // hết 8 giây thì dùng lần đo tốt nhất đã có
+  });
+}
+const pad=n=>String(n).padStart(2,'0');
+const todayKey=()=> {const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+function fmtTime(ts){if(!ts)return '--:--';const d=new Date(ts);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function fmtDateVN(d){
+  const days=['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+  return `${days[d.getDay()]}, ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+}
+// --- Quy tắc chấm công ---
+const AFTERNOON_MIN = 14*60;    // check-in từ 14h trở đi = ca chiều, không tính trễ
+const OT_START_MIN  = 20*60+30; // sau 20h30 = tăng ca (áp dụng tất cả)
+function minsOf(ts){ const d=new Date(ts); return d.getHours()*60+d.getMinutes(); }
+// Trễ: check-in muộn hơn giờ chuẩn, TRỪ khi check-in từ 14h (ca chiều)
+function isLate(checkInTs, workStart){
+  if(!checkInTs || !workStart) return false;
+  const m=minsOf(checkInTs);
+  if(m>=AFTERNOON_MIN) return false;
+  const [h,mm]=workStart.split(':').map(Number);
+  return m > (h*60+mm);
+}
+// Tăng ca (phút) = giờ ra − 20h30, không âm
+function overtimeMins(checkOutTs){
+  if(!checkOutTs) return 0;
+  const ot = minsOf(checkOutTs) - OT_START_MIN;
+  return ot>0 ? ot : 0;
+}
+// Định dạng thời lượng: 90 -> "1h30", 60 -> "1h", 45 -> "45p"
+function fmtDur(m){
+  if(!m || m<=0) return '';
+  const h=Math.floor(m/60), mm=m%60;
+  if(h && mm) return `${h}h${pad(mm)}`;
+  if(h) return `${h}h`;
+  return `${mm}p`;
+}
+
+/* ============================================================
+   4) TRẠNG THÁI & PHIÊN
+   ============================================================ */
+let state={ config:null, employees:{}, session:null, // {role:'nv'|'ql', empId, name}
+            geo:null, nearest:null, dist:null, tab:'today', geoTimer:null };
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.innerHTML=`<div class="toast">${msg}</div>`;
+  setTimeout(()=>t.innerHTML='',2600);
+}
+function saveSession(){ if(state.session) localStorage.setItem('cc_sess',JSON.stringify(state.session)); }
+function loadSession(){ try{return JSON.parse(localStorage.getItem('cc_sess'));}catch{return null;} }
+
+/* ============================================================
+   5) KHỞI ĐỘNG
+   ============================================================ */
+function boot(){
+  if(NOT_CONFIGURED){ return renderNotConfigured(); }
+  APP.innerHTML=`<main class="center" style="padding-top:80px"><div class="muted">Đang kết nối…</div></main>`;
+  db.ref('config').on('value', s=>{
+    state.config = s.val();
+    db.ref('employees').on('value', s2=>{
+      state.employees = s2.val()||{};
+      route();
+    });
+  }, err=>{
+    APP.innerHTML=`<main style="padding-top:60px"><div class="card"><b>Lỗi kết nối Database.</b><p class="muted">Kiểm tra <code>databaseURL</code> và Rules của Realtime Database.</p><p class="muted">${err.message}</p></div></main>`;
+  });
+}
+
+function route(){
+  const sess=state.session||loadSession();
+  if(!state.config){ return renderFirstSetup(); }          // chưa thiết lập công ty
+  if(!sess){ return renderLogin(); }
+  state.session=sess;
+  if(sess.role==='ql') return renderManager();
+  return renderEmployee();
+}
+
+/* ============================================================
+   6) MÀN HÌNH: CHƯA CẤU HÌNH FIREBASE
+   ============================================================ */
+function renderNotConfigured(){
+  APP.innerHTML=`
+  <div class="topbar"><div class="co">Chấm công nội bộ<small>Chưa cấu hình</small></div></div>
+  <main>
+    <div class="card">
+      <div class="eyebrow">Bước 1 · Kết nối Firebase</div>
+      <p style="margin-top:0">Mở file này bằng trình soạn thảo, tìm biến <b>firebaseConfig</b> ở đầu thẻ &lt;script&gt; và dán config dự án Firebase của bạn vào.</p>
+      <ol class="muted" style="padding-left:18px;line-height:1.9">
+        <li>Tạo project tại <b>console.firebase.google.com</b></li>
+        <li>Thêm <b>Web app</b> → copy đoạn <code>firebaseConfig</code></li>
+        <li>Vào <b>Build → Realtime Database</b> → Create Database</li>
+        <li>Dán config vào file, lưu, mở lại</li>
+      </ol>
+      <div class="setup-note">Không cần gói Blaze. Realtime Database + hosting GitHub Pages là đủ, giống app Sổ Kho / Quản Lý Xe của bạn.</div>
+    </div>
+  </main>`;
+}
+
+/* ============================================================
+   7) MÀN HÌNH: THIẾT LẬP LẦN ĐẦU (tạo công ty + vị trí + quản lý)
+   ============================================================ */
+function renderFirstSetup(){
+  APP.innerHTML=`
+  <div class="topbar"><div class="co">Chấm công nội bộ<small>Thiết lập lần đầu</small></div></div>
+  <main>
+    <div class="card">
+      <div class="eyebrow">Tạo công ty</div>
+      <div class="field"><label>Tên công ty / cửa hàng</label><input id="s_co" placeholder="VD: Chang Chang"></div>
+      <div class="field"><label>Mã PIN quản lý (4–6 số)</label><input id="s_pin" inputmode="numeric" placeholder="VD: 2468"></div>
+
+      <div class="eyebrow" style="margin-top:22px">Vị trí chấm công đầu tiên</div>
+      <div class="field"><label>Tên địa điểm</label><input id="s_locname" placeholder="VD: Cửa hàng Quận 1"></div>
+      <div class="field"><label>Dán toạ độ từ Google Maps (vĩ độ, kinh độ)</label><input id="s_paste" placeholder="VD: 10.762622, 106.660172"></div>
+      <div class="muted center" style="margin:-4px 0 12px;font-size:12px">— hoặc —</div>
+      <button class="btn ghost" id="s_getloc" style="margin-bottom:12px">📍 Lấy toạ độ tại đây</button>
+      <div id="s_coords" class="muted center" style="margin-bottom:12px">Dán toạ độ ở trên, hoặc đứng tại chỗ bấm nút</div>
+      <div class="field"><label>Bán kính cho phép (mét)</label><input id="s_radius" inputmode="numeric" value="${DEFAULTS.radius}"></div>
+      <div class="field"><label>Giờ vào chuẩn (trễ hơn = tính trễ)</label><input id="s_start" type="time" value="08:00"></div>
+
+      <button class="btn primary" id="s_save">Hoàn tất thiết lập</button>
+    </div>
+  </main>`;
+
+  let captured=null;
+  // xem trước khi dán toạ độ
+  document.getElementById('s_paste').oninput=e=>{
+    const c=parseLatLng(e.target.value);
+    if(c){ captured=null; document.getElementById('s_coords').innerHTML=`✅ Dùng toạ độ dán: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`; }
+    else if(e.target.value.trim()) document.getElementById('s_coords').innerHTML='⚠️ Toạ độ chưa đúng định dạng';
+  };
+  document.getElementById('s_getloc').onclick=async(e)=>{
+    e.target.textContent='📡 Đang định vị…'; e.target.disabled=true;
+    try{
+      const p=await getPosition();
+      captured=p; document.getElementById('s_paste').value='';
+      document.getElementById('s_coords').innerHTML=
+        `✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} <span class="muted">(±${p.acc}m)</span>`;
+    }catch(err){ document.getElementById('s_coords').textContent='⚠️ '+geoErr(err); }
+    e.target.textContent='📍 Lấy lại toạ độ'; e.target.disabled=false;
+  };
+
+  document.getElementById('s_save').onclick=()=>{
+    const co=val('s_co'), pin=val('s_pin'), ln=val('s_locname');
+    const coord = parseLatLng(val('s_paste')) || captured;
+    if(!co||!pin||!ln) return toast('Điền đủ tên công ty, PIN và tên địa điểm');
+    if(!coord) return toast('Dán toạ độ Google Maps hoặc bấm lấy toạ độ');
+    const locId='loc_'+Date.now();
+    db.ref('config').set({
+      company:co, managerPin:pin, workStart:(val('s_start')||'08:00'),
+      locations:{ [locId]:{ name:ln, lat:coord.lat, lng:coord.lng, radius:Number(val('s_radius'))||DEFAULTS.radius } }
+    }).then(()=>{ state.session={role:'ql',name:'Quản lý'}; saveSession(); toast('Đã tạo công ty'); });
+  };
+}
+function geoErr(err){
+  if(err.code===1) return 'Bạn đã từ chối quyền vị trí. Hãy bật lại trong cài đặt trình duyệt.';
+  if(err.code===2) return 'Không xác định được vị trí. Kiểm tra GPS/mạng.';
+  if(err.code===3) return 'Quá thời gian định vị. Thử lại.';
+  return err.message||'Lỗi định vị';
+}
+
+/* ============================================================
+   8) MÀN HÌNH: ĐĂNG NHẬP
+   ============================================================ */
+function renderLogin(){
+  const emps=Object.entries(state.employees).filter(([,e])=>e.active!==false);
+  APP.innerHTML=`
+  <div class="topbar"><div class="co">${state.config.company}<small>Chấm công nội bộ</small></div></div>
+  <main>
+    <div class="card">
+      <div class="seg"><button id="tab_nv" class="active">Nhân viên</button><button id="tab_ql">Quản lý</button></div>
+      <div id="pane_nv">
+        <div class="field"><label>Chọn tên của bạn</label>
+          <select id="l_emp">
+            <option value="">— Chọn —</option>
+            ${emps.map(([id,e])=>`<option value="${id}">${e.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Mã PIN cá nhân</label><input id="l_pin" inputmode="numeric" type="password" placeholder="••••"></div>
+        <button class="btn primary" id="l_nv">Vào chấm công</button>
+        ${emps.length===0?'<p class="muted center" style="margin-top:12px">Chưa có nhân viên. Quản lý hãy đăng nhập để thêm.</p>':''}
+      </div>
+      <div id="pane_ql" class="hide">
+        <div class="field"><label>Mã PIN quản lý</label><input id="l_qlpin" inputmode="numeric" type="password" placeholder="••••"></div>
+        <button class="btn dark" id="l_ql">Đăng nhập quản lý</button>
+      </div>
+    </div>
+  </main>`;
+
+  const tN=document.getElementById('tab_nv'), tQ=document.getElementById('tab_ql');
+  tN.onclick=()=>{tN.classList.add('active');tQ.classList.remove('active');show('pane_nv');hide('pane_ql');};
+  tQ.onclick=()=>{tQ.classList.add('active');tN.classList.remove('active');show('pane_ql');hide('pane_nv');};
+
+  document.getElementById('l_nv').onclick=()=>{
+    const id=val('l_emp'), pin=val('l_pin');
+    if(!id) return toast('Chọn tên của bạn');
+    const emp=state.employees[id];
+    if(!emp || String(emp.pin)!==pin) return toast('Sai PIN');
+    state.session={role:'nv',empId:id,name:emp.name}; saveSession(); renderEmployee();
+  };
+  document.getElementById('l_ql').onclick=()=>{
+    if(val('l_qlpin')!==String(state.config.managerPin)) return toast('Sai PIN quản lý');
+    state.session={role:'ql',name:'Quản lý'}; saveSession(); renderManager();
+  };
+}
+
+/* ============================================================
+   9) MÀN HÌNH NHÂN VIÊN: CHẤM CÔNG
+   ============================================================ */
+function renderEmployee(){
+  const s=state.session;
+  const canLogout = state.employees[s.empId] && state.employees[s.empId].canLogout;
+  APP.innerHTML=`
+  <div class="topbar">
+    <div class="co">${state.config.company}<small>Xin chào, ${s.name}</small></div>
+    ${canLogout?'<button class="icon-btn" id="logout">⏻</button>':''}
+  </div>
+  <main>
+    <div class="clock mono" id="clock">--:--:--</div>
+    <div class="clock-date" id="cdate"></div>
+
+    <div class="card center">
+      <div class="radar-stage">
+        <div class="radar-fill" id="rfill"></div>
+        <div class="sweep" id="sweep"></div>
+        <div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div>
+        <div class="office-pin"></div>
+        <div class="pulse" id="mepulse"></div>
+        <div class="me-dot" id="medot"></div>
+      </div>
+      <div id="statuspill"><span class="status-pill locating">📡 Đang định vị…</span></div>
+      <div class="dist-line" id="distline">&nbsp;</div>
+    </div>
+
+    <div id="actionArea" style="margin-top:16px"></div>
+    <div id="myToday" style="margin-top:16px"></div>
+  </main>`;
+
+  if(canLogout){ const lo=document.getElementById('logout'); if(lo) lo.onclick=logout; }
+  startClock();
+  locateAndRender();
+  watchMyToday();
+}
+
+function startClock(){
+  const tick=()=>{
+    const el=document.getElementById('clock'); if(!el){clearInterval(state._clk);return;}
+    const d=new Date();
+    el.textContent=`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    document.getElementById('cdate').textContent=fmtDateVN(d);
+  };
+  tick(); clearInterval(state._clk); state._clk=setInterval(tick,1000);
+}
+
+// Định vị + đánh giá trong/ngoài khu vực
+async function locateAndRender(){
+  const locs=Object.values(state.config.locations||{});
+  const pill=document.getElementById('statuspill');
+  const distEl=document.getElementById('distline');
+  const dot=document.getElementById('medot'), pulse=document.getElementById('mepulse');
+  const fill=document.getElementById('rfill'), sweep=document.getElementById('sweep');
+  try{
+    const p=await getPosition();
+    state.geo=p;
+    // tìm địa điểm gần nhất
+    let best=null;
+    locs.forEach(l=>{
+      const d=distanceM(p.lat,p.lng,l.lat,l.lng);
+      if(!best||d<best.dist) best={loc:l,dist:d};
+    });
+    state.nearest=best; state.dist=best.dist;
+    const inside = best.dist<=best.loc.radius;
+    const poorAcc = p.acc>DEFAULTS.minAccuracy;
+
+    sweep.classList.add('off');
+    // vẽ chấm nhân viên theo tỉ lệ khoảng cách (giới hạn trong vòng ngoài)
+    const maxShow=best.loc.radius*2.4;
+    const ratio=Math.min(best.dist/maxShow,1); const ang=Math.PI/4;
+    const rpx=115*ratio; // 115 = bán kính stage
+    dot.style.left=`calc(50% + ${Math.cos(ang)*rpx}px - 10px)`;
+    dot.style.top=`calc(50% - ${Math.sin(ang)*rpx}px - 10px)`;
+    pulse.style.left=dot.style.left; pulse.style.top=dot.style.top;
+
+    if(inside){
+      dot.className='me-dot present'; fill.className='radar-fill on';
+      pill.innerHTML=`<span class="status-pill present">✅ Trong khu vực làm việc</span>`;
+    }else{
+      dot.className='me-dot away'; fill.className='radar-fill on bad';
+      pill.innerHTML=`<span class="status-pill away">📍 Ngoài khu vực</span>`;
+    }
+    distEl.innerHTML=`${best.loc.name} · cách <b>${best.dist}m</b> (cho phép ${best.loc.radius}m) · GPS ±${p.acc}m`
+      + (poorAcc?`<br><span style="color:var(--away)">⚠️ Tín hiệu GPS yếu, ra chỗ thoáng rồi thử lại</span>`:'');
+    renderActions(inside,poorAcc);
+  }catch(err){
+    sweep.classList.add('off');
+    pill.innerHTML=`<span class="status-pill away">⚠️ Không định vị được</span>`;
+    distEl.textContent=geoErr(err);
+    renderActions(false,true);
+  }
+}
+
+function renderActions(inside,poorAcc){
+  const area=document.getElementById('actionArea'); if(!area)return;
+  db.ref(`records/${todayKey()}/${state.session.empId}`).once('value').then(snap=>{
+    const rec=snap.val()||{};
+    const hasIn=!!rec.checkIn, hasOut=!!rec.checkOut;
+    let html='';
+    if(!hasIn){
+      html=`<button class="btn primary" id="doIn" ${inside?'':'disabled'}>🟢 Chấm công VÀO</button>`;
+      if(!inside) html+=`<p class="muted center" style="margin-top:10px">Bạn cần ở trong khu vực để chấm công</p>`;
+    }else if(!hasOut){
+      html=`<div class="card" style="padding:14px;margin-bottom:12px"><span class="muted">Đã vào lúc</span> <b class="mono">${fmtTime(rec.checkIn.time)}</b></div>
+            <button class="btn dark" id="doOut" ${inside?'':'disabled'}>🔴 Chấm công RA</button>`;
+      if(!inside) html+=`<p class="muted center" style="margin-top:10px">Cần ở trong khu vực để chấm ra</p>`;
+    }else{
+      html=`<div class="card center"><b>✅ Hôm nay đã hoàn tất</b><div class="muted" style="margin-top:6px">Vào ${fmtTime(rec.checkIn.time)} · Ra ${fmtTime(rec.checkOut.time)}</div></div>`;
+    }
+    html+=`<button class="btn ghost" id="refreshLoc" style="margin-top:10px">🔄 Định vị lại</button>`;
+    area.innerHTML=html;
+    const bi=document.getElementById('doIn'), bo=document.getElementById('doOut');
+    if(bi) bi.onclick=()=>punch('checkIn');
+    if(bo) bo.onclick=()=>punch('checkOut');
+    document.getElementById('refreshLoc').onclick=()=>{
+      area.innerHTML='<p class="muted center">Đang định vị lại…</p>'; locateAndRender();
+    };
+  });
+}
+
+// Ghi chấm công — dùng ServerValue.TIMESTAMP làm giờ chính thức (chống sửa giờ máy)
+function punch(kind){
+  if(!state.geo || !state.nearest){ toast('Chưa có vị trí, bấm định vị lại'); return; }
+  if(state.dist > state.nearest.loc.radius){ toast('Bạn đang ngoài khu vực'); return; }
+  const rec={
+    time: firebase.database.ServerValue.TIMESTAMP,
+    lat: state.geo.lat, lng: state.geo.lng, acc: state.geo.acc,
+    distance: state.dist, locName: state.nearest.loc.name
+  };
+  db.ref(`records/${todayKey()}/${state.session.empId}/${kind}`).set(rec).then(()=>{
+    toast(kind==='checkIn'?'✅ Đã chấm công vào':'🔴 Đã chấm công ra');
+    locateAndRender();
+  }).catch(e=>toast('Lỗi ghi: '+e.message));
+}
+
+// Gửi 1 bản ghi lên Google Sheet qua Apps Script (chạy ngầm, không chặn giao diện)
+function syncToSheet(payload){
+  const url = state.config && state.config.sheetUrl;
+  if(!url) return Promise.resolve();
+  return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+}
+function rowOf(dk, empId, r){
+  const emp=state.employees[empId]||{};
+  const ws=state.config.workStart||'08:00';
+  const note=r.note||{};
+  return {
+    date: dk, empId,
+    empName: emp.name || (state.session&&state.session.name) || '',
+    checkIn: r.checkIn ? fmtTime(r.checkIn.time) : '',
+    checkOut: r.checkOut ? fmtTime(r.checkOut.time) : '',
+    status: r.checkIn ? (isLate(r.checkIn.time,ws)?'Trễ':'Đúng giờ') : 'Vắng',
+    overtime: fmtDur(overtimeMins(r.checkOut&&r.checkOut.time)),
+    saidon: note.saidon || '',
+    nhacnho: note.nhacnho || ''
+  };
+}
+function watchMyToday(){
+  db.ref(`records/${todayKey()}/${state.session.empId}`).on('value',snap=>{
+    const el=document.getElementById('myToday'); if(!el)return;
+    const rec=snap.val();
+    if(!rec){el.innerHTML='';return;}
+    const ws=state.config.workStart||'08:00';
+    const late=rec.checkIn&&isLate(rec.checkIn.time,ws);
+    const badge=rec.checkIn?(late?'<span class="badge late">Trễ</span>':'<span class="badge ok">Đúng giờ</span>'):'';
+    const ot=overtimeMins(rec.checkOut&&rec.checkOut.time);
+    const otTxt=ot>0?`⏱ Tăng ca ${fmtDur(ot)}`:'Không tăng ca';
+    el.innerHTML=`<div class="card"><div class="eyebrow" style="margin-bottom:10px">Hôm nay của bạn</div>
+      <div class="rec"><div class="avatar">${initials(state.session.name)}</div>
+      <div><div class="nm">${state.session.name}</div><div class="sub">${otTxt}</div></div>
+      <div class="times"><div class="t-in">${fmtTime(rec.checkIn&&rec.checkIn.time)} ${badge}</div>
+      <div class="t-out">Ra ${fmtTime(rec.checkOut&&rec.checkOut.time)}</div></div></div></div>`;
+  });
+}
+
+/* ============================================================
+   10) MÀN HÌNH QUẢN LÝ
+   ============================================================ */
+function renderManager(){
+  APP.innerHTML=`
+  <div class="topbar"><div class="co">${state.config.company}<small>Bảng quản lý</small></div>
+    <button class="icon-btn" id="logout">⏻</button></div>
+  <main id="mgrMain"></main>
+  <div class="tabbar">
+    <button data-t="today"><span class="ic">📋</span>Hôm nay</button>
+    <button data-t="proxy"><span class="ic">✋</span>Chấm hộ</button>
+    <button data-t="history"><span class="ic">📅</span>Lịch sử</button>
+    <button data-t="emps"><span class="ic">👥</span>Nhân viên</button>
+    <button data-t="settings"><span class="ic">⚙️</span>Cài đặt</button>
+  </div>`;
+  document.getElementById('logout').onclick=logout;
+  document.querySelectorAll('.tabbar button').forEach(b=>b.onclick=()=>{state.tab=b.dataset.t;paintTabs();renderMgrTab();});
+  state.tab=state.tab||'today'; paintTabs(); renderMgrTab();
+}
+function paintTabs(){document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.t===state.tab));}
+
+function renderMgrTab(){
+  const m=document.getElementById('mgrMain');
+  if(state.tab==='today') return mgrToday(m);
+  if(state.tab==='proxy') return mgrProxy(m);
+  if(state.tab==='history') return mgrHistory(m);
+  if(state.tab==='emps') return mgrEmployees(m);
+  if(state.tab==='settings') return mgrSettings(m);
+}
+
+// --- Chấm công hộ (quản lý chấm thay, vẫn cần GPS tại cửa hàng) ---
+function mgrProxy(m){
+  const emps=Object.entries(state.employees).filter(([,e])=>e.active!==false);
+  m.innerHTML=`
+    <div class="card">
+      <div class="eyebrow">Chấm công hộ</div>
+      <p class="muted" style="margin-top:0;font-size:13px">Chọn nhân viên rồi chấm thay. Phải đứng trong khu vực cửa hàng (GPS) mới chấm được.</p>
+      <div class="field"><label>Nhân viên</label>
+        <select id="px_emp"><option value="">— Chọn nhân viên —</option>${emps.map(([id,e])=>`<option value="${id}">${e.name}</option>`).join('')}</select>
+      </div>
+      <button class="btn ghost" id="px_loc" style="margin-bottom:10px">📍 Định vị cửa hàng</button>
+      <div id="px_status" class="center" style="margin-bottom:12px"><span class="muted">Bấm định vị để bắt đầu</span></div>
+      <div id="px_actions"></div>
+    </div>`;
+
+  let geo=null, nearest=null, dist=null;
+  const inside=()=> nearest && dist<=nearest.loc.radius;
+  const locBtn=document.getElementById('px_loc');
+
+  locBtn.onclick=async()=>{
+    locBtn.textContent='📡 Đang định vị…'; locBtn.disabled=true;
+    document.getElementById('px_status').innerHTML='<span class="muted">📡 Đang lấy vị trí…</span>';
+    try{
+      const p=await getPosition(); geo=p;
+      const locs=Object.values(state.config.locations||{});
+      let best=null; locs.forEach(l=>{const d=distanceM(p.lat,p.lng,l.lat,l.lng); if(!best||d<best.dist)best={loc:l,dist:d};});
+      nearest=best; dist=best.dist;
+      document.getElementById('px_status').innerHTML = inside()
+        ? `<span class="status-pill present">✅ Trong khu vực · ${best.dist}m</span>`
+        : `<span class="status-pill away">📍 Ngoài khu vực · ${best.dist}m (cho phép ${best.loc.radius}m)</span>`;
+      renderPxActions();
+    }catch(err){ document.getElementById('px_status').innerHTML='<span class="status-pill away">⚠️ '+geoErr(err)+'</span>'; }
+    locBtn.textContent='🔄 Định vị lại'; locBtn.disabled=false;
+  };
+
+  document.getElementById('px_emp').onchange=renderPxActions;
+
+  function renderPxActions(){
+    const area=document.getElementById('px_actions');
+    const empId=val('px_emp');
+    if(!empId){ area.innerHTML='<p class="muted center">Chọn nhân viên ở trên</p>'; return; }
+    if(!geo){ area.innerHTML='<p class="muted center">Bấm “Định vị cửa hàng”</p>'; return; }
+    db.ref(`records/${todayKey()}/${empId}`).once('value').then(s=>{
+      const rec=s.val()||{}; const ok=inside();
+      let html='';
+      if(!rec.checkIn){
+        html=`<button class="btn primary" id="px_in" ${ok?'':'disabled'}>🟢 Chấm công VÀO hộ</button>`;
+      }else if(!rec.checkOut){
+        html=`<div class="card" style="padding:12px;margin-bottom:10px"><span class="muted">Đã vào lúc</span> <b class="mono">${fmtTime(rec.checkIn.time)}</b></div>
+              <button class="btn dark" id="px_out" ${ok?'':'disabled'}>🔴 Chấm công RA hộ</button>`;
+      }else{
+        html=`<div class="card center"><b>✅ Hôm nay đã đủ vào/ra</b><div class="muted" style="margin-top:4px">Vào ${fmtTime(rec.checkIn.time)} · Ra ${fmtTime(rec.checkOut.time)}</div></div>`;
+      }
+      if(!ok && (!rec.checkIn||!rec.checkOut)) html+='<p class="muted center" style="margin-top:8px">Cần ở trong khu vực để chấm</p>';
+      area.innerHTML=html;
+      const bi=document.getElementById('px_in'), bo=document.getElementById('px_out');
+      if(bi) bi.onclick=()=>proxyPunch(empId,'checkIn');
+      if(bo) bo.onclick=()=>proxyPunch(empId,'checkOut');
+    });
+  }
+
+  function proxyPunch(empId,kind){
+    if(!inside()){ toast('Đang ngoài khu vực cửa hàng'); return; }
+    const rec={ time:firebase.database.ServerValue.TIMESTAMP, lat:geo.lat, lng:geo.lng, acc:geo.acc,
+                distance:dist, locName:nearest.loc.name, proxy:true };
+    db.ref(`records/${todayKey()}/${empId}/${kind}`).set(rec).then(()=>{
+      toast(kind==='checkIn'?'✅ Đã chấm vào hộ':'🔴 Đã chấm ra hộ');
+      renderPxActions();
+    }).catch(e=>toast('Lỗi: '+e.message));
+  }
+}
+
+// --- Hôm nay ---
+function mgrToday(m){
+  m.innerHTML='<p class="muted center" style="padding-top:20px">Đang tải…</p>';
+  db.ref(`records/${todayKey()}`).on('value',snap=>{
+    if(state.tab!=='today')return;
+    const recs=snap.val()||{};
+    const emps=Object.entries(state.employees).filter(([,e])=>e.active!==false);
+    let present=0,late=0;
+    const ws=state.config.workStart||'08:00';
+    const rows=emps.map(([id,e])=>{
+      const r=recs[id];
+      if(r&&r.checkIn){present++; if(isLate(r.checkIn.time,ws))late++;
+        return recRow(e.name,r,todayKey(),id);}
+      const hasNote=r&&r.note&&(r.note.saidon||r.note.nhacnho);
+      return `<div class="rec rec-click" onclick="openNote('${todayKey()}','${id}')"><div class="avatar" style="background:var(--line-2);color:var(--muted)">${initials(e.name)}</div>
+        <div><div class="nm">${e.name}${hasNote?' 📝':''}</div><div class="sub">Chưa chấm công</div></div>
+        <div class="times"><span class="badge absent">Vắng</span></div></div>`;
+    }).join('');
+    m.innerHTML=`
+      <div class="stat-row">
+        <div class="stat"><div class="n">${present}/${emps.length}</div><div class="l">Có mặt</div></div>
+        <div class="stat"><div class="n" style="color:var(--amber)">${late}</div><div class="l">Đi trễ</div></div>
+        <div class="stat"><div class="n" style="color:var(--away)">${emps.length-present}</div><div class="l">Vắng</div></div>
+      </div>
+      <div class="list-head"><h3>${fmtDateVN(new Date())}</h3></div>
+      <div class="card">${emps.length?rows:'<p class="muted center">Chưa có nhân viên</p>'}</div>`;
+  });
+}
+function recRow(name,r,dk,empId){
+  const ws=state.config.workStart||'08:00';
+  const late=isLate(r.checkIn.time,ws);
+  const ot=overtimeMins(r.checkOut&&r.checkOut.time);
+  const badge=late?'<span class="badge late">Trễ</span>':'<span class="badge ok">Đúng giờ</span>';
+  const note=r.note||{};
+  const hasNote=note.saidon||note.nhacnho;
+  const otTxt=ot>0?`⏱ Tăng ca ${fmtDur(ot)}`:'Không tăng ca';
+  return `<div class="rec rec-click" onclick="openNote('${dk}','${empId}')"><div class="avatar">${initials(name)}</div>
+    <div><div class="nm">${name}${hasNote?' 📝':''}</div><div class="sub">${otTxt}</div></div>
+    <div class="times">
+      <div class="t-in">${fmtTime(r.checkIn.time)} ${badge}</div>
+      <div class="t-out">Ra ${fmtTime(r.checkOut&&r.checkOut.time)}</div>
+    </div></div>`;
+}
+
+// Khung điền tay Sai đơn / Nhắc nhở cho 1 nhân viên trong 1 ngày
+function openNote(dk, empId){
+  const emp=state.employees[empId]||{};
+  db.ref(`records/${dk}/${empId}/note`).once('value').then(s=>{
+    const note=s.val()||{};
+    openModal(`
+      <div class="eyebrow" style="margin-bottom:4px">Ghi chú · ${dk}</div>
+      <h3 style="margin:0 0 14px">${emp.name||'Nhân viên'}</h3>
+      <div class="field"><label>Sai đơn</label><textarea id="nt_saidon" placeholder="VD: giao sai size, thiếu sản phẩm...">${(note.saidon||'').replace(/</g,'&lt;')}</textarea></div>
+      <div class="field"><label>Nhắc nhở</label><textarea id="nt_nhacnho" placeholder="VD: nhắc tác phong, đi trễ nhiều...">${(note.nhacnho||'').replace(/</g,'&lt;')}</textarea></div>
+      <div class="row" style="margin-top:4px">
+        <button class="btn ghost" onclick="closeModal()">Đóng</button>
+        <button class="btn primary" id="nt_save">Lưu</button>
+      </div>`);
+    document.getElementById('nt_save').onclick=()=>{
+      const data={saidon:val('nt_saidon'), nhacnho:val('nt_nhacnho')};
+      db.ref(`records/${dk}/${empId}/note`).set(data).then(()=>{
+        toast('Đã lưu ghi chú');
+        closeModal();
+      }).catch(e=>toast('Lỗi lưu: '+e.message));
+    };
+  });
+}
+function openModal(html){
+  let root=document.getElementById('modalRoot');
+  if(!root){ root=document.createElement('div'); root.id='modalRoot'; document.body.appendChild(root); }
+  root.innerHTML=`<div class="modal-bg" id="modalBg"><div class="modal">${html}</div></div>`;
+  document.getElementById('modalBg').onclick=e=>{ if(e.target.id==='modalBg') closeModal(); };
+}
+function closeModal(){ const r=document.getElementById('modalRoot'); if(r) r.innerHTML=''; }
+
+// --- Lịch sử ---
+function mgrHistory(m){
+  m.innerHTML=`
+    <div class="field"><label>Chọn ngày</label><input type="date" id="h_date" value="${todayKey()}"></div>
+    <div id="h_body"></div>
+    <button class="btn primary" id="h_sync" style="margin-top:14px">🔄 Đồng bộ ngày này lên Google Sheet</button>
+    <button class="btn dark" id="h_syncall" style="margin-top:10px">☁️ Đồng bộ TẤT CẢ (mọi ngày & nhân viên)</button>`;
+  const load=()=>{
+    const dk=val('h_date');
+    db.ref(`records/${dk}`).once('value').then(snap=>{
+      const recs=snap.val()||{};
+      const emps=Object.entries(state.employees);
+      const rows=emps.map(([id,e])=>{
+        const r=recs[id];
+        if(r&&r.checkIn) return recRow(e.name,r,dk,id);
+        const hasNote=r&&r.note&&(r.note.saidon||r.note.nhacnho);
+        return `<div class="rec rec-click" onclick="openNote('${dk}','${id}')"><div class="avatar" style="background:var(--line-2);color:var(--muted)">${initials(e.name)}</div><div><div class="nm">${e.name}${hasNote?' 📝':''}</div><div class="sub">—</div></div><div class="times"><span class="badge absent">Vắng</span></div></div>`;
+      }).join('');
+      document.getElementById('h_body').innerHTML=`<div class="card">${emps.length?rows:'<p class="muted center">Chưa có dữ liệu</p>'}</div>`;
+      document.getElementById('h_sync').onclick=()=>syncDay(dk,recs);
+      document.getElementById('h_syncall').onclick=()=>syncAll();
+    });
+  };
+  document.getElementById('h_date').onchange=load; load();
+}
+// Đẩy toàn bộ dữ liệu 1 ngày lên Google Sheet
+function syncDay(dk,recs){
+  if(!(state.config&&state.config.sheetUrl)) return toast('Chưa cài link Google Sheet trong Cài đặt');
+  const records=[];
+  Object.entries(state.employees).forEach(([id,e])=>{
+    const r=recs[id] || {};           // không có bản ghi -> vẫn đẩy, đánh dấu Vắng
+    records.push(rowOf(dk,id,r));
+  });
+  if(!records.length) return toast('Chưa có nhân viên nào');
+  toast('Đang đồng bộ…');
+  syncToSheet({records}).then(()=>toast('✅ Đã đồng bộ lên Google Sheet'))
+    .catch(()=>toast('⚠️ Lỗi đồng bộ, kiểm tra lại link'));
+}
+// Đồng bộ TẤT CẢ nhân viên của MỌI ngày
+function syncAll(){
+  if(!(state.config&&state.config.sheetUrl)) return toast('Chưa cài link Google Sheet trong Cài đặt');
+  toast('Đang đồng bộ tất cả…');
+  db.ref('records').once('value').then(snap=>{
+    const all=snap.val()||{};
+    const records=[];
+    Object.entries(all).forEach(([dk,dayRecs])=>{
+      Object.entries(dayRecs||{}).forEach(([empId,r])=>{
+        if(state.employees[empId] && (r.checkIn || r.note)) records.push(rowOf(dk,empId,r));
+      });
+    });
+    if(!records.length) return toast('Không có dữ liệu để đồng bộ');
+    sendBatches(records,0,records.length);
+  }).catch(()=>toast('⚠️ Không đọc được dữ liệu'));
+}
+function sendBatches(records,i,total){
+  const SIZE=300;
+  const chunk=records.slice(i,i+SIZE);
+  if(!chunk.length){ toast('✅ Đã đồng bộ tất cả ('+total+' dòng)'); return; }
+  syncToSheet({records:chunk})
+    .then(()=>sendBatches(records,i+SIZE,total))
+    .catch(()=>toast('⚠️ Lỗi đồng bộ, kiểm tra lại link'));
+}
+
+// --- Nhân viên ---
+function mgrEmployees(m){
+  const emps=Object.entries(state.employees);
+  m.innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <div class="eyebrow">Thêm nhân viên</div>
+      <div class="field"><label>Họ tên</label><input id="e_name" placeholder="VD: Nguyễn Văn A"></div>
+      <div class="field"><label>Mã PIN cá nhân (4–6 số)</label><input id="e_pin" inputmode="numeric" placeholder="VD: 1234"></div>
+      <button class="btn primary" id="e_add">+ Thêm nhân viên</button>
+    </div>
+    <div class="list-head"><h3>Danh sách (${emps.length})</h3></div>
+    <div class="card">${emps.length?emps.map(([id,e])=>`
+      <div class="emp-item"><div class="avatar" style="${e.active===false?'opacity:.4':''}">${initials(e.name)}</div>
+        <div><div class="nm">${e.name}</div><div class="sub">PIN: ${e.pin}${e.active===false?' · đã khoá':''}${e.canLogout?' · được đăng xuất':''}</div></div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="icon-btn" title="Cho phép đăng xuất" style="background:${e.canLogout?'var(--present-bg)':'var(--line-2)'};color:${e.canLogout?'#137a3c':'var(--muted)'}" data-lo="${id}">🚪</button>
+          <button class="icon-btn" style="background:var(--line-2);color:var(--ink)" data-tog="${id}">${e.active===false?'🔓':'🔒'}</button>
+          <button class="icon-btn" style="background:var(--away-bg);color:var(--away)" data-del="${id}">🗑</button>
+        </div></div>`).join(''):'<p class="muted center">Chưa có nhân viên</p>'}</div>
+    <p class="muted" style="font-size:12px;margin-top:8px">🚪 = cho phép nhân viên đó tự đăng xuất (VD người cầm mật khẩu quản lý). Còn lại không có nút đăng xuất.</p>`;
+  document.getElementById('e_add').onclick=()=>{
+    const n=val('e_name'),p=val('e_pin');
+    if(!n||!p) return toast('Nhập tên và PIN');
+    db.ref('employees').push({name:n,pin:p,active:true}).then(()=>toast('Đã thêm '+n));
+  };
+  m.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    if(confirm('Xoá nhân viên này? (dữ liệu chấm công cũ vẫn giữ)')) db.ref('employees/'+b.dataset.del).remove();
+  });
+  m.querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{
+    const e=state.employees[b.dataset.tog]; db.ref('employees/'+b.dataset.tog+'/active').set(e.active===false);
+  });
+  m.querySelectorAll('[data-lo]').forEach(b=>b.onclick=()=>{
+    const e=state.employees[b.dataset.lo]; db.ref('employees/'+b.dataset.lo+'/canLogout').set(!e.canLogout);
+  });
+}
+
+// --- Cài đặt: vị trí & tham số ---
+function mgrSettings(m){
+  const locs=Object.entries(state.config.locations||{});
+  m.innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <div class="eyebrow">Giờ vào chuẩn</div>
+      <div class="row" style="align-items:flex-end">
+        <div class="field" style="margin:0"><label>Giờ vào</label><input type="time" id="cf_start" value="${state.config.workStart||'08:00'}"></div>
+        <button class="btn ghost" id="cf_savestart" style="flex:0 0 auto;width:auto;padding:12px 26px">Lưu</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="eyebrow">Google Sheet (tự đồng bộ)</div>
+      <div class="field"><label>Dán link Apps Script (…/exec)</label><input id="cf_sheet" placeholder="https://script.google.com/macros/s/..../exec" value="${state.config.sheetUrl||''}"></div>
+      <button class="btn ghost" id="cf_savesheet" style="width:auto;padding:12px 26px">Lưu link</button>
+      <p class="muted" style="margin:10px 0 0;font-size:12px">Có link rồi thì mỗi lần chấm công dữ liệu tự ghi vào Sheet. Để trống = tắt.</p>
+    </div>
+
+    <div class="list-head"><h3>Vị trí chấm công (${locs.length})</h3></div>
+    <div class="card" style="margin-bottom:16px">
+      ${locs.map(([id,l])=>`<div class="emp-item">
+        <div class="avatar">📍</div>
+        <div><div class="nm">${l.name}</div><div class="sub">${l.lat.toFixed(5)}, ${l.lng.toFixed(5)} · bán kính ${l.radius}m</div></div>
+        <button class="icon-btn" style="margin-left:auto;background:var(--away-bg);color:var(--away)" data-dell="${id}">🗑</button>
+      </div>`).join('')||'<p class="muted center">Chưa có vị trí</p>'}
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Thêm vị trí mới</div>
+      <div class="field"><label>Tên địa điểm</label><input id="nl_name" placeholder="VD: Kho Phú Quốc"></div>
+      <div class="field"><label>Dán toạ độ từ Google Maps (vĩ độ, kinh độ)</label><input id="nl_paste" placeholder="VD: 10.762622, 106.660172"></div>
+      <div class="muted center" style="margin:-4px 0 10px;font-size:12px">— hoặc —</div>
+      <button class="btn ghost" id="nl_get" style="margin-bottom:10px">📍 Lấy toạ độ tại đây</button>
+      <div id="nl_coords" class="muted center" style="margin-bottom:12px">Dán toạ độ ở trên, hoặc đứng tại chỗ bấm nút</div>
+      <div class="field"><label>Bán kính (mét)</label><input id="nl_radius" inputmode="numeric" value="${DEFAULTS.radius}"></div>
+      <button class="btn primary" id="nl_add">+ Thêm vị trí</button>
+    </div>`;
+
+  document.getElementById('cf_savestart').onclick=()=>db.ref('config/workStart').set(val('cf_start')||'08:00').then(()=>toast('Đã lưu giờ vào chuẩn'));
+  document.getElementById('cf_savesheet').onclick=()=>db.ref('config/sheetUrl').set(val('cf_sheet')).then(()=>toast(val('cf_sheet')?'Đã lưu link Google Sheet':'Đã tắt đồng bộ Sheet'));
+  m.querySelectorAll('[data-dell]').forEach(b=>b.onclick=()=>{
+    if(Object.keys(state.config.locations).length<=1) return toast('Phải còn ít nhất 1 vị trí');
+    if(confirm('Xoá vị trí này?')) db.ref('config/locations/'+b.dataset.dell).remove();
+  });
+  let cap=null;
+  document.getElementById('nl_paste').oninput=e=>{
+    const c=parseLatLng(e.target.value);
+    if(c){cap=null;document.getElementById('nl_coords').innerHTML=`✅ Dùng toạ độ dán: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`;}
+    else if(e.target.value.trim()) document.getElementById('nl_coords').innerHTML='⚠️ Toạ độ chưa đúng định dạng';
+  };
+  document.getElementById('nl_get').onclick=async e=>{
+    e.target.textContent='📡 Đang định vị…';e.target.disabled=true;
+    try{const p=await getPosition();cap=p;document.getElementById('nl_paste').value='';
+      document.getElementById('nl_coords').innerHTML=`✅ ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} <span class="muted">(±${p.acc}m)</span>`;
+    }catch(err){document.getElementById('nl_coords').textContent='⚠️ '+geoErr(err);}
+    e.target.textContent='📍 Lấy lại toạ độ';e.target.disabled=false;
+  };
+  document.getElementById('nl_add').onclick=()=>{
+    const n=val('nl_name');const coord=parseLatLng(val('nl_paste'))||cap;
+    if(!n) return toast('Nhập tên địa điểm');
+    if(!coord) return toast('Dán toạ độ hoặc bấm lấy toạ độ');
+    db.ref('config/locations/loc_'+Date.now()).set({name:n,lat:coord.lat,lng:coord.lng,radius:Number(val('nl_radius'))||DEFAULTS.radius}).then(()=>toast('Đã thêm vị trí'));
+  };
+}
+
+/* ============================================================
+   11) HÀM DÙNG CHUNG
+   ============================================================ */
+function val(id){const e=document.getElementById(id);return e?e.value.trim():'';}
+function show(id){document.getElementById(id).classList.remove('hide');}
+function hide(id){document.getElementById(id).classList.add('hide');}
+function initials(n){return n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();}
+function logout(){localStorage.removeItem('cc_sess');state.session=null;clearInterval(state._clk);renderLogin();}
+
+boot();
+
+// Đăng ký service worker + TỰ CẬP NHẬT cho mọi máy đã cài
+if('serviceWorker' in navigator){
+  let refreshing=false;
+  const hadController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(refreshing || !hadController) return;   // lần cài đầu thì khỏi reload
+    refreshing=true; location.reload();        // có bản mới -> tự làm mới
+  });
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update();
+      setInterval(()=>reg.update(), 60000);    // kiểm tra bản mới mỗi 60 giây
+    }).catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
