@@ -574,7 +574,6 @@ function rowOf(dk, empId, r){
     checkOut: r.checkOut ? fmtTime(r.checkOut.time) : '',
     status: r.checkIn ? (isLate(r.checkIn.time,ws)?'Trễ':'Đúng giờ') : 'Vắng',
     overtime: fmtDur(overtimeMins(r.checkOut&&r.checkOut.time)),
-    saidon: note.saidon || '',
     nhacnho: note.nhacnho || ''
   };
 }
@@ -711,7 +710,7 @@ function mgrToday(m){
       const r=recs[id];
       if(r&&r.checkIn){present++; if(isLate(r.checkIn.time,ws))late++;
         return recRow(e.name,r,todayKey(),id);}
-      const hasNote=r&&r.note&&(r.note.saidon||r.note.nhacnho);
+      const hasNote=r&&r.note&&r.note.nhacnho;
       return `<div class="rec rec-click" onclick="openNote('${todayKey()}','${id}')"><div class="avatar" style="background:var(--line-2);color:var(--muted)">${initials(e.name)}</div>
         <div><div class="nm">${e.name}${hasNote?' 📝':''}</div><div class="sub">Chưa chấm công</div></div>
         <div class="times"><span class="badge absent">Vắng</span></div></div>`;
@@ -732,7 +731,7 @@ function recRow(name,r,dk,empId){
   const ot=overtimeMins(r.checkOut&&r.checkOut.time);
   const badge=late?'<span class="badge late">Trễ</span>':'<span class="badge ok">Đúng giờ</span>';
   const note=r.note||{};
-  const hasNote=note.saidon||note.nhacnho;
+  const hasNote=note.nhacnho;
   const otTxt=ot>0?`⏱ Tăng ca ${fmtDur(ot)}`:'Không tăng ca';
   return `<div class="rec rec-click" onclick="openNote('${dk}','${empId}')"><div class="avatar">${initials(name)}</div>
     <div><div class="nm">${name}${hasNote?' 📝':''}</div><div class="sub">${otTxt}</div></div>
@@ -742,7 +741,7 @@ function recRow(name,r,dk,empId){
     </div></div>`;
 }
 
-// Khung điền tay Sai đơn / Nhắc nhở cho 1 nhân viên trong 1 ngày
+// Khung điền tay Nhắc nhở cho 1 nhân viên trong 1 ngày
 function openNote(dk, empId){
   const emp=state.employees[empId]||{};
   db.ref(`records/${dk}/${empId}/note`).once('value').then(s=>{
@@ -750,14 +749,13 @@ function openNote(dk, empId){
     openModal(`
       <div class="eyebrow" style="margin-bottom:4px">Ghi chú · ${dk}</div>
       <h3 style="margin:0 0 14px">${emp.name||'Nhân viên'}</h3>
-      <div class="field"><label>Sai đơn</label><textarea id="nt_saidon" placeholder="VD: giao sai size, thiếu sản phẩm...">${(note.saidon||'').replace(/</g,'&lt;')}</textarea></div>
       <div class="field"><label>Nhắc nhở</label><textarea id="nt_nhacnho" placeholder="VD: nhắc tác phong, đi trễ nhiều...">${(note.nhacnho||'').replace(/</g,'&lt;')}</textarea></div>
       <div class="row" style="margin-top:4px">
         <button class="btn ghost" onclick="closeModal()">Đóng</button>
         <button class="btn primary" id="nt_save">Lưu</button>
       </div>`);
     document.getElementById('nt_save').onclick=()=>{
-      const data={saidon:val('nt_saidon'), nhacnho:val('nt_nhacnho')};
+      const data={nhacnho:val('nt_nhacnho')};
       db.ref(`records/${dk}/${empId}/note`).set(data).then(()=>{
         toast('Đã lưu ghi chú');
         closeModal();
@@ -788,7 +786,7 @@ function mgrHistory(m){
       const rows=emps.map(([id,e])=>{
         const r=recs[id];
         if(r&&r.checkIn) return recRow(e.name,r,dk,id);
-        const hasNote=r&&r.note&&(r.note.saidon||r.note.nhacnho);
+        const hasNote=r&&r.note&&r.note.nhacnho;
         return `<div class="rec rec-click" onclick="openNote('${dk}','${id}')"><div class="avatar" style="background:var(--line-2);color:var(--muted)">${initials(e.name)}</div><div><div class="nm">${e.name}${hasNote?' 📝':''}</div><div class="sub">—</div></div><div class="times"><span class="badge absent">Vắng</span></div></div>`;
       }).join('');
       document.getElementById('h_body').innerHTML=`<div class="card">${emps.length?rows:'<p class="muted center">Chưa có dữ liệu</p>'}</div>`;
