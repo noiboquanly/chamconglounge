@@ -432,7 +432,9 @@ function renderLogin(){
    ============================================================ */
 function renderEmployee(){
   const s=state.session;
-  const canLogout = state.employees[s.empId] && state.employees[s.empId].canLogout;
+  const emp=state.employees[s.empId]||{};
+  const canLogout = emp.canLogout;
+  const skipGPS = !!emp.requirePhoto;
   APP.innerHTML=`
   <div class="topbar">
     <div class="co">${state.config.company}<small>Xin chào, ${s.name}</small></div>
@@ -442,6 +444,10 @@ function renderEmployee(){
     <div class="clock mono" id="clock">--:--:--</div>
     <div class="clock-date" id="cdate"></div>
 
+    ${skipGPS ? `
+    <div class="card center">
+      <p class="muted" style="margin:6px 0 0">📷 Tài khoản này xác thực bằng ảnh khi đăng nhập, không cần định vị GPS lúc chấm công.</p>
+    </div>` : `
     <div class="card center">
       <div class="radar-stage">
         <div class="radar-fill" id="rfill"></div>
@@ -453,7 +459,7 @@ function renderEmployee(){
       </div>
       <div id="statuspill"><span class="status-pill locating">📡 Đang định vị…</span></div>
       <div class="dist-line" id="distline">&nbsp;</div>
-    </div>
+    </div>`}
 
     <div id="actionArea" style="margin-top:16px"></div>
     <div id="myToday" style="margin-top:16px"></div>
@@ -461,7 +467,7 @@ function renderEmployee(){
 
   if(canLogout){ const lo=document.getElementById('logout'); if(lo) lo.onclick=logout; }
   startClock();
-  locateAndRender();
+  if(skipGPS){ renderActions(true,false); } else { locateAndRender(); }
   watchMyToday();
 }
 
@@ -524,43 +530,53 @@ async function locateAndRender(){
 
 function renderActions(inside,poorAcc){
   const area=document.getElementById('actionArea'); if(!area)return;
-  db.ref(`records/${todayKey()}/${state.session.empId}`).once('value').then(snap=>{
+  const empId=state.session.empId;
+  const emp=state.employees[empId]||{};
+  const skipGPS=!!emp.requirePhoto;
+  const ok = skipGPS ? true : inside;
+  db.ref(`records/${todayKey()}/${empId}`).once('value').then(snap=>{
     const rec=snap.val()||{};
     const hasIn=!!rec.checkIn, hasOut=!!rec.checkOut;
     let html='';
     if(!hasIn){
-      html=`<button class="btn primary" id="doIn" ${inside?'':'disabled'}>🟢 Chấm công VÀO</button>`;
-      if(!inside) html+=`<p class="muted center" style="margin-top:10px">Bạn cần ở trong khu vực để chấm công</p>`;
+      html=`<button class="btn primary" id="doIn" ${ok?'':'disabled'}>🟢 Chấm công VÀO</button>`;
+      if(!ok) html+=`<p class="muted center" style="margin-top:10px">Bạn cần ở trong khu vực để chấm công</p>`;
     }else if(!hasOut){
       html=`<div class="card" style="padding:14px;margin-bottom:12px"><span class="muted">Đã vào lúc</span> <b class="mono">${fmtTime(rec.checkIn.time)}</b></div>
-            <button class="btn dark" id="doOut" ${inside?'':'disabled'}>🔴 Chấm công RA</button>`;
-      if(!inside) html+=`<p class="muted center" style="margin-top:10px">Cần ở trong khu vực để chấm ra</p>`;
+            <button class="btn dark" id="doOut" ${ok?'':'disabled'}>🔴 Chấm công RA</button>`;
+      if(!ok) html+=`<p class="muted center" style="margin-top:10px">Cần ở trong khu vực để chấm ra</p>`;
     }else{
       html=`<div class="card center"><b>✅ Hôm nay đã hoàn tất</b><div class="muted" style="margin-top:6px">Vào ${fmtTime(rec.checkIn.time)} · Ra ${fmtTime(rec.checkOut.time)}</div></div>`;
     }
-    html+=`<button class="btn ghost" id="refreshLoc" style="margin-top:10px">🔄 Định vị lại</button>`;
+    if(!skipGPS) html+=`<button class="btn ghost" id="refreshLoc" style="margin-top:10px">🔄 Định vị lại</button>`;
     area.innerHTML=html;
     const bi=document.getElementById('doIn'), bo=document.getElementById('doOut');
     if(bi) bi.onclick=()=>punch('checkIn');
     if(bo) bo.onclick=()=>punch('checkOut');
-    document.getElementById('refreshLoc').onclick=()=>{
-      area.innerHTML='<p class="muted center">Đang định vị lại…</p>'; locateAndRender();
-    };
+    const rl=document.getElementById('refreshLoc');
+    if(rl) rl.onclick=()=>{ area.innerHTML='<p class="muted center">Đang định vị lại…</p>'; locateAndRender(); };
   });
 }
 
 // Ghi chấm công — dùng ServerValue.TIMESTAMP làm giờ chính thức (chống sửa giờ máy)
 function punch(kind){
-  if(!state.geo || !state.nearest){ toast('Chưa có vị trí, bấm định vị lại'); return; }
-  if(state.dist > state.nearest.loc.radius){ toast('Bạn đang ngoài khu vực'); return; }
-  const rec={
-    time: firebase.database.ServerValue.TIMESTAMP,
-    lat: state.geo.lat, lng: state.geo.lng, acc: state.geo.acc,
-    distance: state.dist, locName: state.nearest.loc.name
-  };
+  const emp=state.employees[state.session.empId]||{};
+  const skipGPS=!!emp.requirePhoto;
+  let rec;
+  if(skipGPS){
+    rec={ time: firebase.database.ServerValue.TIMESTAMP, skipGPS:true };
+  }else{
+    if(!state.geo || !state.nearest){ toast('Chưa có vị trí, bấm định vị lại'); return; }
+    if(state.dist > state.nearest.loc.radius){ toast('Bạn đang ngoài khu vực'); return; }
+    rec={
+      time: firebase.database.ServerValue.TIMESTAMP,
+      lat: state.geo.lat, lng: state.geo.lng, acc: state.geo.acc,
+      distance: state.dist, locName: state.nearest.loc.name
+    };
+  }
   db.ref(`records/${todayKey()}/${state.session.empId}/${kind}`).set(rec).then(()=>{
     toast(kind==='checkIn'?'✅ Đã chấm công vào':'🔴 Đã chấm công ra');
-    locateAndRender();
+    if(skipGPS) renderActions(true,false); else locateAndRender();
   }).catch(e=>toast('Lỗi ghi: '+e.message));
 }
 
@@ -940,7 +956,7 @@ function mgrEmployees(m){
           <button class="icon-btn" style="background:var(--line-2);color:var(--ink)" data-tog="${id}">${e.active===false?'🔓':'🔒'}</button>
           <button class="icon-btn" style="background:var(--away-bg);color:var(--away)" data-del="${id}">🗑</button>
         </div></div>`).join(''):'<p class="muted center">Chưa có nhân viên</p>'}</div>
-    <p class="muted" style="font-size:12px;margin-top:8px">📷 = bắt buộc chụp ảnh mỗi lần đăng nhập. 🚪 = cho phép nhân viên đó tự đăng xuất. Còn lại mặc định không bật.</p>`;
+    <p class="muted" style="font-size:12px;margin-top:8px">📷 = xác thực bằng ảnh khi đăng nhập, KHÔNG cần định vị GPS lúc chấm công. 🚪 = cho phép nhân viên đó tự đăng xuất. Còn lại mặc định không bật.</p>`;
   document.getElementById('e_add').onclick=()=>{
     const n=val('e_name'),p=val('e_pin');
     if(!n||!p) return toast('Nhập tên và PIN');
