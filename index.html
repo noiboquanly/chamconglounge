@@ -407,11 +407,18 @@ function renderLogin(){
   tN.onclick=()=>{tN.classList.add('active');tQ.classList.remove('active');show('pane_nv');hide('pane_ql');};
   tQ.onclick=()=>{tQ.classList.add('active');tN.classList.remove('active');show('pane_ql');hide('pane_nv');};
 
-  document.getElementById('l_nv').onclick=()=>{
+  document.getElementById('l_nv').onclick=async()=>{
     const id=val('l_emp'), pin=val('l_pin');
     if(!id) return toast('Chọn tên của bạn');
     const emp=state.employees[id];
     if(!emp || String(emp.pin)!==pin) return toast('Sai PIN');
+    if(emp.requirePhoto){
+      const photo=await capturePhoto();
+      if(!photo){ toast('Cần chụp ảnh để đăng nhập'); return; }
+      try{
+        await db.ref('photoLogins/'+id).push({ time: firebase.database.ServerValue.TIMESTAMP, photo });
+      }catch(e){ toast('Lỗi lưu ảnh, thử lại: '+e.message); return; }
+    }
     state.session={role:'nv',empId:id,name:emp.name}; saveSession(); renderEmployee();
   };
   document.getElementById('l_ql').onclick=()=>{
@@ -771,6 +778,84 @@ function openModal(html){
 }
 function closeModal(){ const r=document.getElementById('modalRoot'); if(r) r.innerHTML=''; }
 
+// Mở camera, bắt buộc chụp 1 tấm trước khi cho vào. Trả về base64 ảnh (đã nén nhỏ) hoặc null nếu huỷ.
+function capturePhoto(){
+  return new Promise(resolve=>{
+    openModal(`
+      <div class="eyebrow" style="margin-bottom:4px">Xác nhận bằng ảnh</div>
+      <h3 style="margin:0 0 14px">Chụp một tấm trước khi vào</h3>
+      <video id="cam_video" autoplay playsinline muted style="width:100%;border-radius:14px;background:#000;max-height:52vh;object-fit:cover;display:block"></video>
+      <canvas id="cam_canvas" class="hide"></canvas>
+      <p class="muted center" id="cam_status" style="margin:10px 0 0">📡 Đang mở camera…</p>
+      <div class="row" style="margin-top:14px">
+        <button class="btn ghost" id="cam_cancel">Huỷ</button>
+        <button class="btn primary" id="cam_shot" disabled>📸 Chụp</button>
+      </div>`);
+    const video=document.getElementById('cam_video');
+    const statusEl=document.getElementById('cam_status');
+    const shotBtn=document.getElementById('cam_shot');
+    const cancelBtn=document.getElementById('cam_cancel');
+    let stream=null, settled=false;
+    const stop=()=>{ if(stream) stream.getTracks().forEach(t=>t.stop()); };
+    const finish=(val)=>{ if(settled) return; settled=true; stop(); closeModal(); resolve(val); };
+
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      statusEl.textContent='⚠️ Thiết bị/trình duyệt không hỗ trợ camera.';
+      cancelBtn.onclick=()=>finish(null);
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false}).then(s=>{
+      if(settled){ s.getTracks().forEach(t=>t.stop()); return; }
+      stream=s; video.srcObject=s;
+      statusEl.textContent='Canh mặt vào khung rồi bấm Chụp'; shotBtn.disabled=false;
+    }).catch(err=>{
+      statusEl.textContent='⚠️ Không mở được camera: '+(err.message||err.name||'không rõ lỗi');
+    });
+
+    cancelBtn.onclick=()=>finish(null);
+    shotBtn.onclick=()=>{
+      const canvas=document.getElementById('cam_canvas');
+      const vw=video.videoWidth||480, vh=video.videoHeight||640;
+      const w=320, h=Math.max(1,Math.round(vh/vw*w));
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(video,0,0,w,h);
+      const dataUrl=canvas.toDataURL('image/jpeg',0.55);
+      finish(dataUrl);
+    };
+  });
+}
+
+// Khung xem lại ảnh đăng nhập của 1 nhân viên (mới nhất trước), có nút xoá hết để dọn định kỳ
+function openPhotoGallery(empId){
+  const emp=state.employees[empId]||{};
+  openModal(`<div class="eyebrow" style="margin-bottom:4px">Ảnh đăng nhập</div><h3 style="margin:0 0 14px">${emp.name||'Nhân viên'}</h3><p class="muted center">Đang tải…</p>`);
+  db.ref('photoLogins/'+empId).limitToLast(60).once('value').then(snap=>{
+    const data=snap.val()||{};
+    const items=Object.values(data).sort((a,b)=>(b.time||0)-(a.time||0));
+    const rows=items.map(p=>{
+      const d=new Date(p.time);
+      const label=`${pad(d.getHours())}:${pad(d.getMinutes())} · ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+      return `<div style="margin-bottom:12px">
+        <img src="${p.photo}" style="width:100%;border-radius:12px;display:block;margin-bottom:6px" loading="lazy">
+        <div class="muted" style="font-size:12px">${label}</div>
+      </div>`;
+    }).join('') || '<p class="muted center">Chưa có ảnh nào</p>';
+    openModal(`
+      <div class="eyebrow" style="margin-bottom:4px">Ảnh đăng nhập (${items.length})</div>
+      <h3 style="margin:0 0 14px">${emp.name||'Nhân viên'}</h3>
+      <div style="max-height:58vh;overflow:auto">${rows}</div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn ghost" onclick="closeModal()">Đóng</button>
+        ${items.length?'<button class="btn danger" id="pg_clear">🗑 Xoá tất cả ảnh</button>':''}
+      </div>`);
+    const clearBtn=document.getElementById('pg_clear');
+    if(clearBtn) clearBtn.onclick=()=>{
+      if(!confirm('Xoá toàn bộ ảnh đăng nhập của '+(emp.name||'')+'? Không thể hoàn tác.')) return;
+      db.ref('photoLogins/'+empId).remove().then(()=>{ toast('Đã xoá ảnh'); closeModal(); });
+    };
+  }).catch(()=>{ openModal('<p class="muted center">Không tải được ảnh, thử lại sau.</p><button class="btn ghost" onclick="closeModal()" style="margin-top:10px">Đóng</button>'); });
+}
+
 // --- Lịch sử ---
 function mgrHistory(m){
   m.innerHTML=`
@@ -847,13 +932,15 @@ function mgrEmployees(m){
     <div class="list-head"><h3>Danh sách (${emps.length})</h3></div>
     <div class="card">${emps.length?emps.map(([id,e])=>`
       <div class="emp-item"><div class="avatar" style="${e.active===false?'opacity:.4':''}">${initials(e.name)}</div>
-        <div><div class="nm">${e.name}</div><div class="sub">PIN: ${e.pin}${e.active===false?' · đã khoá':''}${e.canLogout?' · được đăng xuất':''}</div></div>
+        <div><div class="nm">${e.name}</div><div class="sub">PIN: ${e.pin}${e.active===false?' · đã khoá':''}${e.canLogout?' · được đăng xuất':''}${e.requirePhoto?' · yêu cầu ảnh':''}</div>
+          <div class="sub" style="color:var(--brand);font-weight:600;cursor:pointer" data-gal="${id}">🖼 Xem ảnh đăng nhập</div></div>
         <div style="margin-left:auto;display:flex;gap:6px">
+          <button class="icon-btn" title="Bắt buộc chụp ảnh khi đăng nhập" style="background:${e.requirePhoto?'var(--present-bg)':'var(--line-2)'};color:${e.requirePhoto?'#137a3c':'var(--muted)'}" data-ph="${id}">📷</button>
           <button class="icon-btn" title="Cho phép đăng xuất" style="background:${e.canLogout?'var(--present-bg)':'var(--line-2)'};color:${e.canLogout?'#137a3c':'var(--muted)'}" data-lo="${id}">🚪</button>
           <button class="icon-btn" style="background:var(--line-2);color:var(--ink)" data-tog="${id}">${e.active===false?'🔓':'🔒'}</button>
           <button class="icon-btn" style="background:var(--away-bg);color:var(--away)" data-del="${id}">🗑</button>
         </div></div>`).join(''):'<p class="muted center">Chưa có nhân viên</p>'}</div>
-    <p class="muted" style="font-size:12px;margin-top:8px">🚪 = cho phép nhân viên đó tự đăng xuất (VD người cầm mật khẩu quản lý). Còn lại không có nút đăng xuất.</p>`;
+    <p class="muted" style="font-size:12px;margin-top:8px">📷 = bắt buộc chụp ảnh mỗi lần đăng nhập. 🚪 = cho phép nhân viên đó tự đăng xuất. Còn lại mặc định không bật.</p>`;
   document.getElementById('e_add').onclick=()=>{
     const n=val('e_name'),p=val('e_pin');
     if(!n||!p) return toast('Nhập tên và PIN');
@@ -868,6 +955,10 @@ function mgrEmployees(m){
   m.querySelectorAll('[data-lo]').forEach(b=>b.onclick=()=>{
     const e=state.employees[b.dataset.lo]; db.ref('employees/'+b.dataset.lo+'/canLogout').set(!e.canLogout);
   });
+  m.querySelectorAll('[data-ph]').forEach(b=>b.onclick=()=>{
+    const e=state.employees[b.dataset.ph]; db.ref('employees/'+b.dataset.ph+'/requirePhoto').set(!e.requirePhoto);
+  });
+  m.querySelectorAll('[data-gal]').forEach(b=>b.onclick=()=>openPhotoGallery(b.dataset.gal));
 }
 
 // --- Cài đặt: vị trí & tham số ---
