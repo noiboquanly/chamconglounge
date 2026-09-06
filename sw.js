@@ -2,7 +2,7 @@
    - index.html: ƯU TIÊN MẠNG -> mọi máy tự lấy bản mới nhất khi có mạng.
    - Offline: dùng bản đã lưu để vẫn mở được.
    - KHÔNG cache dữ liệu Firebase (luôn lấy mới). */
-const CACHE = 'chamcong-v10';
+const CACHE = 'chamcong-v11';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-512-maskable.png', './apple-touch-icon.png',
